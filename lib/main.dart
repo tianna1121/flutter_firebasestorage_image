@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import './dataHolder.dart';
+
 void main() => runApp(MaterialApp(
       title: "Fashion",
       home: ImagesScreen(),
@@ -14,7 +16,7 @@ class ImagesScreen extends StatelessWidget {
       gridDelegate:
           SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2),
       itemBuilder: (context, index) {
-        return ImageGridItem(index);
+        return ImageGridItem(index + 1);
       },
     );
   }
@@ -46,17 +48,23 @@ class _ImageGridItemState extends State<ImageGridItem> {
       FirebaseStorage.instance.ref().child("photos");
 
   getImage() {
-    int MAX_SIZE = 1 * 1024 * 1024;
-    storageReference
-        .child("fashion_${widget._index}.jpg")
-        .getData(MAX_SIZE)
-        .then((data) {
-      setState(() {
-        imageFile = data;
+    if (!requestedIndexes.contains(widget._index)) {
+      int MAX_SIZE = 1 * 1024 * 1024;
+      storageReference
+          .child("fashion_${widget._index}.jpg")
+          .getData(MAX_SIZE)
+          .then((data) {
+        setState(() {
+          imageFile = data;
+        });
+        imageData.putIfAbsent(widget._index, () {
+          return data;
+        });
+      }).catchError((error) {
+        print(error.toString());
       });
-    }).catchError((error) {
-      print(error.toString());
-    });
+      requestedIndexes.add(widget._index);
+    }
   }
 
   Widget decideGridTileWidget() {
@@ -75,7 +83,13 @@ class _ImageGridItemState extends State<ImageGridItem> {
   @override
   void initState() {
     super.initState();
-    getImage();
+    if (!imageData.containsKey(widget._index)) {
+      getImage();
+    } else {
+      setState(() {
+        imageFile = imageData[widget._index];
+      });
+    }
   }
 
   @override
